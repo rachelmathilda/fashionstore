@@ -14,17 +14,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<Map<String, String>> _onboardingData = [
     {
-      "bg": "images/onboarding_1.png",
+      "bg": "assets/images/onboarding_1.png",
       "title": "100+ Clothes Option",
       "desc": "Various clothes option",
     },
     {
-      "bg": "images/onboarding_2.png",
+      "bg": "assets/images/onboarding_2.png",
       "title": "Try-On Before Buy",
       "desc": "You can try it using our AI based AR tech",
     },
     {
-      "bg": "images/onboarding_3.png",
+      "bg": "assets/images/onboarding_3.png",
       "title": "Find Outfit That Suit You",
       "desc":
           "Our algorithm able to make recommendation of based on your style",

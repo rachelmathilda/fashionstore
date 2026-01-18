@@ -26,7 +26,7 @@ class _SplashScreenState extends State<SplashScreen> {
       backgroundColor: Colors.white,
       body: Center(
         child: Image.asset(
-          'images/logo_icon.png',
+          'assets/images/logo_icon.png',
           width: MediaQuery.of(context).size.width,
           fit: BoxFit.fitWidth,
         ),
