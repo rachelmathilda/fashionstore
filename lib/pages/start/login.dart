@@ -1,0 +1,363 @@
+import 'package:flutter/material.dart';
+import '../../services/auth_service.dart';
+
+class Login extends StatefulWidget {
+  const Login({super.key});
+
+  @override
+  State<Login> createState() => _LoginState();
+}
+
+class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
+  String? email;
+  String? password;
+  bool rememberMe = false;
+  bool obscurePassword = true;
+
+  late final AnimationController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberMe();
+    controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 6),
+    )..repeat(reverse: true);
+  }
+
+  Future<void> _loadRememberMe() async {
+    final rememberMeStatus = await AuthService.getRememberMe();
+    if (mounted) {
+      setState(() {
+        rememberMe = rememberMeStatus;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  InputDecoration getInputDecoration(
+    String label,
+    IconData icon, {
+    bool isPassword = false,
+    VoidCallback? toggleVisibility,
+    bool obscure = false,
+  }) {
+    return InputDecoration(
+      hintText: label,
+      hintStyle: const TextStyle(color: Colors.black54),
+      prefixIcon: isPassword
+          ? IconButton(
+              icon: Icon(
+                obscure
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                color: Colors.black54,
+              ),
+              onPressed: toggleVisibility,
+            )
+          : Icon(icon, color: Colors.black54),
+      filled: true,
+      fillColor: const Color(0xFFEAEDFB),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+      enabledBorder: OutlineInputBorder(
+        borderSide: BorderSide.none,
+        borderRadius: BorderRadius.circular(30),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderSide: BorderSide.none,
+        borderRadius: BorderRadius.circular(30),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFC0C9EE),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            AnimatedBuilder(
+              animation: controller,
+              builder: (context, child) {
+                return Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: const [
+                        Color(0xFF898AC4),
+                        Color(0xFFA2AADB),
+                        Color(0xFFC0C9EE),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      stops: [
+                        0.0 + (controller.value * 0.1),
+                        0.5 + (controller.value * 0.1),
+                        1.0,
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(30),
+                    topRight: Radius.circular(30),
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(24, 40, 24, 30),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Hi! Welcome back",
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      "Sign in to your account",
+                      style: TextStyle(fontSize: 16, color: Colors.black54),
+                    ),
+                    const SizedBox(height: 32),
+                    TextField(
+                      onChanged: (val) => email = val,
+                      style: const TextStyle(color: Colors.black),
+                      decoration: getInputDecoration(
+                        "Email",
+                        Icons.email_outlined,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      obscureText: obscurePassword,
+                      onChanged: (val) => password = val,
+                      style: const TextStyle(color: Colors.black),
+                      decoration: getInputDecoration(
+                        "Password",
+                        Icons.lock_outline,
+                        isPassword: true,
+                        obscure: obscurePassword,
+                        toggleVisibility: () {
+                          setState(() {
+                            obscurePassword = !obscurePassword;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Checkbox(
+                          activeColor: const Color(0xFF1A1B1F),
+                          value: rememberMe,
+                          onChanged: (value) {
+                            setState(() {
+                              rememberMe = value ?? false;
+                            });
+                          },
+                        ),
+                        const Text(
+                          "Remember me",
+                          style: TextStyle(color: Colors.black87, fontSize: 14),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 45,
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF898AC4),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        onPressed: () async {
+                          if (email != null && password != null) {
+                            if (!RegExp(
+                              r'^[^@]+@[^@]+\.[^@]+',
+                            ).hasMatch(email!)) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Invalid email format"),
+                                ),
+                              );
+                              return;
+                            }
+                            try {
+                              await AuthService.signInWithEmail(
+                                email: email!.trim(),
+                                password: password!.trim(),
+                                rememberMe: rememberMe,
+                              );
+                              if (mounted) {
+                                Navigator.pushNamed(context, '/home');
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("Login failed: $e")),
+                                );
+                              }
+                            }
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  "Please enter email and password",
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        child: const Text(
+                          "Sign In",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Center(
+                      child: Text(
+                        "Or login with",
+                        style: TextStyle(fontSize: 14, color: Colors.black54),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        InkWell(
+                          onTap: () async {
+                            try {
+                              await AuthService.signInWithGoogle(
+                                rememberMe: rememberMe,
+                              );
+                              if (mounted) {
+                                Navigator.pushNamed(context, '/home');
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text("Google login failed: $e"),
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(30),
+                          child: Container(
+                            width: 55,
+                            height: 55,
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Color.fromRGBO(0, 0, 0, 0.12),
+                                  blurRadius: 4,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            padding: const EdgeInsets.all(14),
+                            child: Image.asset('images/google.png'),
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        InkWell(
+                          onTap: () async {
+                            try {
+                              await AuthService.signInWithApple(
+                                rememberMe: rememberMe,
+                              );
+                              if (mounted) {
+                                Navigator.pushNamed(context, '/home');
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text("Apple login failed: $e"),
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(30),
+                          child: Container(
+                            width: 55,
+                            height: 55,
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Color.fromRGBO(0, 0, 0, 0.12),
+                                  blurRadius: 4,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            padding: const EdgeInsets.all(12),
+                            child: Image.asset('images/apple.png'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          "Don't have an account? ",
+                          style: TextStyle(fontSize: 13, color: Colors.black54),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.pushNamed(context, '/register');
+                          },
+                          child: const Text(
+                            "Sign Up",
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF5E686D),
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

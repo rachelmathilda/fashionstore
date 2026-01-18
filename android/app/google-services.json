@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "759119411396",
+    "project_id": "vaelys",
+    "storage_bucket": "vaelys.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:759119411396:android:09f2b3f345bf1e2b837191",
+        "android_client_info": {
+          "package_name": "com.example.fashionstore"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDhjZ1A1zqtGNrKIO5KJ_UDEwXQc6quBxs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
