@@ -7,10 +7,8 @@ class SharedPref {
     _prefs = await SharedPreferences.getInstance();
   }
 
-  // ====== Simpan data ======
-  static Future<void> saveUser(String userId, String token) async {
+  static Future<void> saveUser(String userId) async {
     await _prefs?.setString('userId', userId);
-    await _prefs?.setString('token', token);
   }
 
   static Future<void> saveString(String key, String value) async {
@@ -21,16 +19,12 @@ class SharedPref {
     await _prefs?.setBool(key, value);
   }
 
-  // ====== Ambil data ======
   static String? getUserId() => _prefs?.getString('userId');
-  static String? getToken() => _prefs?.getString('token');
   static String? getString(String key) => _prefs?.getString(key);
   static bool? getBool(String key) => _prefs?.getBool(key);
 
-  // ====== Hapus data ======
   static Future<void> clearUser() async {
     await _prefs?.remove('userId');
-    await _prefs?.remove('token');
   }
 
   static Future<void> remove(String key) async {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
 import '../../services/auth_service.dart';
 
 class Login extends StatefulWidget {
@@ -8,36 +9,65 @@ class Login extends StatefulWidget {
   State<Login> createState() => _LoginState();
 }
 
-class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
+class _BubbleData {
+  double x, y, size, speed, phase;
+  _BubbleData({
+    required this.x,
+    required this.y,
+    required this.size,
+    required this.speed,
+    required this.phase,
+  });
+}
+
+class _LoginState extends State<Login> with TickerProviderStateMixin {
   String? email;
   String? password;
   bool rememberMe = false;
   bool obscurePassword = true;
+  bool isLoading = false;
 
-  late final AnimationController controller;
+  late final AnimationController gradientController;
+  late final AnimationController bubbleController;
+  late final List<_BubbleData> bubbles;
 
   @override
   void initState() {
     super.initState();
     _loadRememberMe();
-    controller = AnimationController(
+
+    gradientController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 6),
     )..repeat(reverse: true);
+
+    bubbleController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    )..repeat();
+
+    final rng = Random();
+    bubbles = List.generate(
+      8,
+      (i) => _BubbleData(
+        x: rng.nextDouble(),
+        y: rng.nextDouble(),
+        size: 40 + rng.nextDouble() * 80,
+        speed: 0.3 + rng.nextDouble() * 0.7,
+        phase: rng.nextDouble() * 2 * pi,
+      ),
+    );
   }
 
   Future<void> _loadRememberMe() async {
-    final rememberMeStatus = await AuthService.getRememberMe();
-    if (mounted) {
-      setState(() {
-        rememberMe = rememberMeStatus;
-      });
-    }
+    final val = await AuthService.getRememberMe();
+    if (mounted) setState(() => rememberMe = val);
   }
 
   @override
   void dispose() {
-    controller.dispose();
+    gradientController.dispose();
+    bubbleController.dispose();
     super.dispose();
   }
 
@@ -78,15 +108,20 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+
     return Scaffold(
       backgroundColor: const Color(0xFFC0C9EE),
       body: SafeArea(
         child: Stack(
           children: [
             AnimatedBuilder(
-              animation: controller,
+              animation: gradientController,
               builder: (context, child) {
                 return Container(
+                  width: double.infinity,
+                  height: double.infinity,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: const [
@@ -97,12 +132,40 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       stops: [
-                        0.0 + (controller.value * 0.1),
-                        0.5 + (controller.value * 0.1),
+                        0.0 + (gradientController.value * 0.1),
+                        0.5 + (gradientController.value * 0.1),
                         1.0,
                       ],
                     ),
                   ),
+                );
+              },
+            ),
+            AnimatedBuilder(
+              animation: bubbleController,
+              builder: (context, child) {
+                return Stack(
+                  children: bubbles.map((b) {
+                    final t = bubbleController.value;
+                    final dy = sin(t * 2 * pi * b.speed + b.phase) * 0.06;
+                    final dx = cos(t * 2 * pi * b.speed * 0.7 + b.phase) * 0.03;
+                    return Positioned(
+                      left: (b.x + dx) * screenWidth - b.size / 2,
+                      top: (b.y + dy) * screenHeight * 0.45 - b.size / 2,
+                      child: Container(
+                        width: b.size,
+                        height: b.size,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withOpacity(0.15),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.25),
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 );
               },
             ),
@@ -155,9 +218,7 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
                         isPassword: true,
                         obscure: obscurePassword,
                         toggleVisibility: () {
-                          setState(() {
-                            obscurePassword = !obscurePassword;
-                          });
+                          setState(() => obscurePassword = !obscurePassword);
                         },
                       ),
                     ),
@@ -168,9 +229,7 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
                           activeColor: const Color(0xFF1A1B1F),
                           value: rememberMe,
                           onChanged: (value) {
-                            setState(() {
-                              rememberMe = value ?? false;
-                            });
+                            setState(() => rememberMe = value ?? false);
                           },
                         ),
                         const Text(
@@ -191,51 +250,67 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
                             borderRadius: BorderRadius.circular(30),
                           ),
                         ),
-                        onPressed: () async {
-                          if (email != null && password != null) {
-                            if (!RegExp(
-                              r'^[^@]+@[^@]+\.[^@]+',
-                            ).hasMatch(email!)) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text("Invalid email format"),
+                        onPressed: isLoading
+                            ? null
+                            : () async {
+                                if (email == null || password == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        "Please enter email and password",
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                if (!RegExp(
+                                  r'^[^@]+@[^@]+\.[^@]+',
+                                ).hasMatch(email!)) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("Invalid email format"),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                setState(() => isLoading = true);
+                                try {
+                                  await AuthService.signInWithEmail(
+                                    email: email!.trim(),
+                                    password: password!.trim(),
+                                    rememberMe: rememberMe,
+                                  );
+                                  if (mounted)
+                                    Navigator.pushNamed(context, '/home');
+                                } catch (e) {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text("Login failed: $e"),
+                                      ),
+                                    );
+                                  }
+                                } finally {
+                                  if (mounted)
+                                    setState(() => isLoading = false);
+                                }
+                              },
+                        child: isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
                                 ),
-                              );
-                              return;
-                            }
-                            try {
-                              await AuthService.signInWithEmail(
-                                email: email!.trim(),
-                                password: password!.trim(),
-                                rememberMe: rememberMe,
-                              );
-                              if (mounted) {
-                                Navigator.pushNamed(context, '/home');
-                              }
-                            } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text("Login failed: $e")),
-                                );
-                              }
-                            }
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  "Please enter email and password",
+                              )
+                            : const Text(
+                                "Sign In",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                            );
-                          }
-                        },
-                        child: const Text(
-                          "Sign In",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -255,9 +330,8 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
                               await AuthService.signInWithGoogle(
                                 rememberMe: rememberMe,
                               );
-                              if (mounted) {
+                              if (mounted)
                                 Navigator.pushNamed(context, '/home');
-                              }
                             } catch (e) {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -294,9 +368,8 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
                               await AuthService.signInWithApple(
                                 rememberMe: rememberMe,
                               );
-                              if (mounted) {
+                              if (mounted)
                                 Navigator.pushNamed(context, '/home');
-                              }
                             } catch (e) {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -337,9 +410,8 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
                           style: TextStyle(fontSize: 13, color: Colors.black54),
                         ),
                         GestureDetector(
-                          onTap: () {
-                            Navigator.pushNamed(context, '/register');
-                          },
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/register'),
                           child: const Text(
                             "Sign Up",
                             style: TextStyle(
